@@ -19,8 +19,8 @@ export default function CreatePollPage() {
       const result = await createPoll(data)
       
       if (result.success && result.pollId) {
-        // Redirect to the newly created poll
-        router.push(`/polls/${result.pollId}?created=true`)
+        // Redirect to polls page with success message
+        router.push(`/polls?created=true&pollId=${result.pollId}`)
       } else {
         throw new Error("Failed to create poll")
       }

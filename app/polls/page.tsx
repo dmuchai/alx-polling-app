@@ -8,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Poll, PollFilters } from "@/types"
 import { Plus, Search, Filter, Grid, List, TrendingUp, Clock, Users } from "lucide-react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { getActivePolls } from "@/lib/actions/polls.actions"
 import { submitVote } from "@/lib/actions/voting.actions"
 
 export default function PollsPage() {
+  const searchParams = useSearchParams()
   const [polls, setPolls] = useState<Poll[]>([])
   const [filteredPolls, setFilteredPolls] = useState<Poll[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -20,6 +22,27 @@ export default function PollsPage() {
   const [filters, setFilters] = useState<PollFilters>({})
   const [isLoading, setIsLoading] = useState(true)
   const [isVoting, setIsVoting] = useState(false)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [createdPollId, setCreatedPollId] = useState<string | null>(null)
+
+  // Check for success message parameters
+  useEffect(() => {
+    const wasCreated = searchParams.get('created') === 'true'
+    const pollId = searchParams.get('pollId')
+    
+    if (wasCreated && pollId) {
+      setShowSuccessMessage(true)
+      setCreatedPollId(pollId)
+      
+      // Auto-hide success message after 5 seconds
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false)
+        setCreatedPollId(null)
+      }, 5000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams])
 
   // Fetch polls on component mount
   useEffect(() => {
@@ -175,6 +198,47 @@ export default function PollsPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-green-800">
+                  Poll created successfully!
+                </h3>
+                <p className="text-sm text-green-700 mt-1">
+                  Your poll is now live and ready to collect votes.
+                  {createdPollId && (
+                    <Link 
+                      href={`/polls/${createdPollId}`}
+                      className="text-green-600 hover:text-green-800 underline ml-1"
+                    >
+                      View your poll
+                    </Link>
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSuccessMessage(false)}
+              className="text-green-600 hover:text-green-800"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
