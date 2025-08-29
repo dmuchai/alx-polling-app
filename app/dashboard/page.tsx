@@ -21,6 +21,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
+import { createClient } from "@/lib/supabase/client"
+import { getUserPolls, deletePoll } from "@/lib/actions/polls.actions"
 
 // Mock data for demonstration
 const mockUser: User = {
@@ -114,14 +116,91 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate loading user data
-    setTimeout(() => {
-      setUser(mockUser)
-      setStats(mockStats)
-      setPolls(mockUserPolls)
-      setFilteredPolls(mockUserPolls)
-      setIsLoading(false)
-    }, 500)
+    const fetchUserData = async () => {
+      try {
+        const supabase = createClient()
+        
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        
+        if (userError || !user) {
+          // Redirect to login if not authenticated
+          window.location.href = '/login'
+          return
+        }
+
+        // Get user profile
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single()
+
+        if (profileError || !profile) {
+          throw new Error("User profile not found")
+        }
+
+        // Transform profile to User interface
+        const userData: User = {
+          id: profile.id,
+          email: profile.email,
+          username: profile.username,
+          firstName: profile.first_name || undefined,
+          lastName: profile.last_name || undefined,
+          avatar: profile.avatar || undefined,
+          createdAt: new Date(profile.created_at),
+          updatedAt: new Date(profile.updated_at)
+        }
+
+        setUser(userData)
+
+        // Get user's polls
+        const userPollsData = await getUserPolls(user.id)
+        
+        // Transform polls data
+        const transformedPolls: Poll[] = userPollsData.map(pollData => ({
+          id: pollData.id,
+          title: pollData.title,
+          description: pollData.description || undefined,
+          options: pollData.poll_options.map((option: any) => ({
+            id: option.id,
+            text: option.text,
+            votes: option.votes,
+            pollId: option.poll_id
+          })),
+          creatorId: pollData.creator_id,
+          creator: userData,
+          isActive: pollData.is_active,
+          allowMultipleVotes: pollData.allow_multiple_votes,
+          requireAuth: pollData.require_auth,
+          expiresAt: pollData.expires_at ? new Date(pollData.expires_at) : undefined,
+          createdAt: new Date(pollData.created_at),
+          updatedAt: new Date(pollData.updated_at),
+          totalVotes: pollData.total_votes,
+          category: pollData.category,
+          tags: pollData.tags || undefined
+        }))
+
+        setPolls(transformedPolls)
+        setFilteredPolls(transformedPolls)
+
+        // Calculate stats
+        const stats: DashboardStats = {
+          totalPolls: transformedPolls.length,
+          activePolls: transformedPolls.filter(poll => poll.isActive).length,
+          totalVotes: transformedPolls.reduce((sum, poll) => sum + poll.totalVotes, 0),
+          totalViews: transformedPolls.reduce((sum, poll) => sum + (poll.totalVotes * 3), 0) // Rough estimate
+        }
+
+        setStats(stats)
+      } catch (error) {
+        console.error("Error fetching user data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchUserData()
   }, [])
 
   useEffect(() => {
@@ -175,11 +254,11 @@ export default function DashboardPage() {
     }
 
     try {
-      // TODO: Replace with actual API call
-      console.log("Deleting poll:", pollId)
+      await deletePoll(pollId)
 
       // Update local state
       setPolls(prev => prev.filter(poll => poll.id !== pollId))
+      setFilteredPolls(prev => prev.filter(poll => poll.id !== pollId))
     } catch (error) {
       console.error("Error deleting poll:", error)
     }

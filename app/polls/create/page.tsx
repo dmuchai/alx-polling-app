@@ -4,6 +4,7 @@ import { useState } from "react"
 import { CreatePollForm } from "@/components/polls/create-poll-form"
 import { CreatePollData } from "@/types"
 import { useRouter } from "next/navigation"
+import { createPoll } from "@/lib/actions/polls.actions"
 
 export default function CreatePollPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -15,22 +16,14 @@ export default function CreatePollPage() {
     setError("")
 
     try {
-      // TODO: Replace with actual create poll API call
-      console.log("Creating poll:", data)
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Simulate validation
-      if (data.title.toLowerCase().includes('inappropriate')) {
-        throw new Error("Poll content violates our community guidelines")
+      const result = await createPoll(data)
+      
+      if (result.success && result.pollId) {
+        // Redirect to the newly created poll
+        router.push(`/polls/${result.pollId}?created=true`)
+      } else {
+        throw new Error("Failed to create poll")
       }
-
-      // TODO: Make actual API call to create poll
-      const pollId = `poll_${Date.now()}` // Mock poll ID
-
-      // Redirect to the newly created poll
-      router.push(`/polls/${pollId}?created=true`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while creating the poll")
     } finally {

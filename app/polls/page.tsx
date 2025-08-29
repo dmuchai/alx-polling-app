@@ -8,83 +8,68 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Poll, PollFilters } from "@/types"
 import { Plus, Search, Filter, Grid, List, TrendingUp, Clock, Users } from "lucide-react"
 import Link from "next/link"
-
-// Mock data for demonstration
-const mockPolls: Poll[] = [
-  {
-    id: "1",
-    title: "What's your favorite programming language?",
-    description: "Help us understand the preferences of developers in our community",
-    options: [
-      { id: "1a", text: "JavaScript", votes: 45, pollId: "1" },
-      { id: "1b", text: "Python", votes: 38, pollId: "1" },
-      { id: "1c", text: "TypeScript", votes: 32, pollId: "1" },
-      { id: "1d", text: "Go", votes: 15, pollId: "1" },
-    ],
-    creatorId: "user1",
-    creator: { id: "user1", email: "john@example.com", username: "johndoe", createdAt: new Date(), updatedAt: new Date() },
-    isActive: true,
-    allowMultipleVotes: false,
-    requireAuth: true,
-    createdAt: new Date(Date.now() - 86400000), // 1 day ago
-    updatedAt: new Date(Date.now() - 86400000),
-    totalVotes: 130,
-    category: "Technology",
-    tags: ["programming", "development", "languages"]
-  },
-  {
-    id: "2",
-    title: "Best time for team meetings?",
-    description: "Let's find a time that works for everyone on the team",
-    options: [
-      { id: "2a", text: "9:00 AM", votes: 12, pollId: "2" },
-      { id: "2b", text: "11:00 AM", votes: 24, pollId: "2" },
-      { id: "2c", text: "2:00 PM", votes: 18, pollId: "2" },
-      { id: "2d", text: "4:00 PM", votes: 8, pollId: "2" },
-    ],
-    creatorId: "user2",
-    creator: { id: "user2", email: "jane@example.com", username: "janesmith", createdAt: new Date(), updatedAt: new Date() },
-    isActive: true,
-    allowMultipleVotes: true,
-    requireAuth: false,
-    expiresAt: new Date(Date.now() + 604800000), // 7 days from now
-    createdAt: new Date(Date.now() - 172800000), // 2 days ago
-    updatedAt: new Date(Date.now() - 172800000),
-    totalVotes: 62,
-    category: "Business",
-    tags: ["meetings", "scheduling", "team"]
-  },
-  {
-    id: "3",
-    title: "Which feature should we prioritize next?",
-    description: "Help us decide what to work on in the next sprint",
-    options: [
-      { id: "3a", text: "Dark mode", votes: 89, pollId: "3" },
-      { id: "3b", text: "Mobile app", votes: 67, pollId: "3" },
-      { id: "3c", text: "Analytics dashboard", votes: 45, pollId: "3" },
-      { id: "3d", text: "API improvements", votes: 23, pollId: "3" },
-    ],
-    creatorId: "user3",
-    creator: { id: "user3", email: "admin@example.com", username: "admin", createdAt: new Date(), updatedAt: new Date() },
-    isActive: true,
-    allowMultipleVotes: false,
-    requireAuth: true,
-    createdAt: new Date(Date.now() - 259200000), // 3 days ago
-    updatedAt: new Date(Date.now() - 86400000), // Updated 1 day ago
-    totalVotes: 224,
-    category: "Product",
-    tags: ["features", "roadmap", "development"]
-  }
-]
+import { getActivePolls } from "@/lib/actions/polls.actions"
+import { submitVote } from "@/lib/actions/voting.actions"
 
 export default function PollsPage() {
-  const [polls, setPolls] = useState<Poll[]>(mockPolls)
-  const [filteredPolls, setFilteredPolls] = useState<Poll[]>(mockPolls)
+  const [polls, setPolls] = useState<Poll[]>([])
+  const [filteredPolls, setFilteredPolls] = useState<Poll[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'ending'>('recent')
   const [filters, setFilters] = useState<PollFilters>({})
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isVoting, setIsVoting] = useState(false)
+
+  // Fetch polls on component mount
+  useEffect(() => {
+    const fetchPolls = async () => {
+      try {
+        const pollsData = await getActivePolls()
+        
+        // Transform the database data to match our Poll interface
+        const transformedPolls: Poll[] = pollsData.map(pollData => ({
+          id: pollData.id,
+          title: pollData.title,
+          description: pollData.description || undefined,
+          options: pollData.poll_options.map((option: any) => ({
+            id: option.id,
+            text: option.text,
+            votes: option.votes,
+            pollId: option.poll_id
+          })),
+          creatorId: pollData.creator_id,
+          creator: pollData.profiles ? {
+            id: pollData.profiles.id,
+            email: pollData.profiles.email,
+            username: pollData.profiles.username,
+            firstName: pollData.profiles.first_name || undefined,
+            lastName: pollData.profiles.last_name || undefined,
+            avatar: pollData.profiles.avatar || undefined,
+            createdAt: new Date(pollData.profiles.created_at),
+            updatedAt: new Date(pollData.profiles.updated_at)
+          } : undefined,
+          isActive: pollData.is_active,
+          allowMultipleVotes: pollData.allow_multiple_votes,
+          requireAuth: pollData.require_auth,
+          expiresAt: pollData.expires_at ? new Date(pollData.expires_at) : undefined,
+          createdAt: new Date(pollData.created_at),
+          updatedAt: new Date(pollData.updated_at),
+          totalVotes: pollData.total_votes,
+          category: pollData.category,
+          tags: pollData.tags || undefined
+        }))
+        
+        setPolls(transformedPolls)
+      } catch (error) {
+        console.error("Error fetching polls:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchPolls()
+  }, [])
 
   // Filter and sort polls
   useEffect(() => {
@@ -129,38 +114,64 @@ export default function PollsPage() {
   }, [polls, searchQuery, filters, sortBy])
 
   const handleVote = async (pollId: string, optionIds: string[]) => {
-    setIsLoading(true)
+    setIsVoting(true)
     try {
-      // TODO: Replace with actual vote API call
-      console.log(`Voting on poll ${pollId} with options:`, optionIds)
+      await submitVote({ pollId, optionIds })
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Update local state (in real app, this would come from the API response)
-      setPolls(prevPolls => prevPolls.map(poll => {
-        if (poll.id === pollId) {
-          const updatedOptions = poll.options.map(option =>
-            optionIds.includes(option.id)
-              ? { ...option, votes: option.votes + 1 }
-              : option
-          )
-          return {
-            ...poll,
-            options: updatedOptions,
-            totalVotes: poll.totalVotes + optionIds.length
-          }
-        }
-        return poll
+      // Refresh polls data to get updated vote counts
+      const updatedPollsData = await getActivePolls()
+      
+      const updatedPolls: Poll[] = updatedPollsData.map(pollData => ({
+        id: pollData.id,
+        title: pollData.title,
+        description: pollData.description || undefined,
+                 options: pollData.poll_options.map((option: any) => ({
+           id: option.id,
+           text: option.text,
+           votes: option.votes,
+           pollId: option.poll_id
+         })),
+        creatorId: pollData.creator_id,
+        creator: pollData.profiles ? {
+          id: pollData.profiles.id,
+          email: pollData.profiles.email,
+          username: pollData.profiles.username,
+          firstName: pollData.profiles.first_name || undefined,
+          lastName: pollData.profiles.last_name || undefined,
+          avatar: pollData.profiles.avatar || undefined,
+          createdAt: new Date(pollData.profiles.created_at),
+          updatedAt: new Date(pollData.profiles.updated_at)
+        } : undefined,
+        isActive: pollData.is_active,
+        allowMultipleVotes: pollData.allow_multiple_votes,
+        requireAuth: pollData.require_auth,
+        expiresAt: pollData.expires_at ? new Date(pollData.expires_at) : undefined,
+        createdAt: new Date(pollData.created_at),
+        updatedAt: new Date(pollData.updated_at),
+        totalVotes: pollData.total_votes,
+        category: pollData.category,
+        tags: pollData.tags || undefined
       }))
+      
+      setPolls(updatedPolls)
     } catch (error) {
       console.error("Voting error:", error)
     } finally {
-      setIsLoading(false)
+      setIsVoting(false)
     }
   }
 
   const categories = Array.from(new Set(polls.map(poll => poll.category).filter(Boolean)))
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto py-8 px-4">

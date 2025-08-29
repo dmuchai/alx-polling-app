@@ -23,41 +23,8 @@ import {
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
-
-// Mock data - in a real app, this would come from an API
-const mockPoll: Poll = {
-  id: "1",
-  title: "What's your favorite programming language for web development?",
-  description: "Help us understand the current trends in web development. This poll will help shape our upcoming tutorial series and course content.",
-  options: [
-    { id: "1a", text: "JavaScript", votes: 145, pollId: "1" },
-    { id: "1b", text: "TypeScript", votes: 132, pollId: "1" },
-    { id: "1c", text: "Python", votes: 98, pollId: "1" },
-    { id: "1d", text: "PHP", votes: 67, pollId: "1" },
-    { id: "1e", text: "Java", votes: 54, pollId: "1" },
-    { id: "1f", text: "C#", votes: 43, pollId: "1" },
-  ],
-  creatorId: "user1",
-  creator: {
-    id: "user1",
-    email: "john@example.com",
-    username: "johndoe",
-    firstName: "John",
-    lastName: "Doe",
-    avatar: "/avatars/john.jpg",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  isActive: true,
-  allowMultipleVotes: false,
-  requireAuth: true,
-  expiresAt: new Date(Date.now() + 604800000), // 7 days from now
-  createdAt: new Date(Date.now() - 86400000), // 1 day ago
-  updatedAt: new Date(Date.now() - 3600000), // 1 hour ago
-  totalVotes: 539,
-  category: "Technology",
-  tags: ["programming", "web-development", "languages", "coding"]
-}
+import { getPoll } from "@/lib/actions/polls.actions"
+import { submitVote } from "@/lib/actions/voting.actions"
 
 export default function PollDetailPage() {
   const params = useParams()
@@ -74,15 +41,58 @@ export default function PollDetailPage() {
   const wasJustCreated = searchParams.get('created') === 'true'
 
   useEffect(() => {
-    // Simulate loading poll data
-    setTimeout(() => {
-      setPoll(mockPoll)
-      setIsLoading(false)
-      // In a real app, check if user has already voted
-      const userHasVoted = localStorage.getItem(`voted_${pollId}`)
-      setHasVoted(!!userHasVoted)
-      setShowResults(!!userHasVoted)
-    }, 500)
+    const fetchPoll = async () => {
+      try {
+        const pollData = await getPoll(pollId)
+        
+        // Transform the database data to match our Poll interface
+        const transformedPoll: Poll = {
+          id: pollData.id,
+          title: pollData.title,
+          description: pollData.description || undefined,
+          options: pollData.options.map(option => ({
+            id: option.id,
+            text: option.text,
+            votes: option.votes,
+            pollId: option.poll_id
+          })),
+          creatorId: pollData.creator_id,
+          creator: pollData.creator ? {
+            id: pollData.creator.id,
+            email: pollData.creator.email,
+            username: pollData.creator.username,
+            firstName: pollData.creator.first_name || undefined,
+            lastName: pollData.creator.last_name || undefined,
+            avatar: pollData.creator.avatar || undefined,
+            createdAt: new Date(pollData.creator.created_at),
+            updatedAt: new Date(pollData.creator.updated_at)
+          } : undefined,
+          isActive: pollData.is_active,
+          allowMultipleVotes: pollData.allow_multiple_votes,
+          requireAuth: pollData.require_auth,
+          expiresAt: pollData.expires_at ? new Date(pollData.expires_at) : undefined,
+          createdAt: new Date(pollData.created_at),
+          updatedAt: new Date(pollData.updated_at),
+          totalVotes: pollData.total_votes,
+          category: pollData.category,
+          tags: pollData.tags || undefined
+        }
+        
+        setPoll(transformedPoll)
+        
+        // Check if user has already voted
+        const userHasVoted = localStorage.getItem(`voted_${pollId}`)
+        setHasVoted(!!userHasVoted)
+        setShowResults(!!userHasVoted)
+      } catch (error) {
+        console.error("Error fetching poll:", error)
+        // Handle error appropriately
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchPoll()
   }, [pollId])
 
   const formatDate = (date: Date) => {
@@ -139,37 +149,59 @@ export default function PollDetailPage() {
     setIsVoting(true)
 
     try {
-      // TODO: Replace with actual API call
       const voteData: VoteData = {
         pollId: poll.id,
         optionIds: selectedOptions
       }
 
-      console.log("Submitting vote:", voteData)
+      await submitVote(voteData)
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Update local state
-      const updatedPoll = {
-        ...poll,
-        options: poll.options.map(option =>
-          selectedOptions.includes(option.id)
-            ? { ...option, votes: option.votes + 1 }
-            : option
-        ),
-        totalVotes: poll.totalVotes + selectedOptions.length
+      // Refresh poll data to get updated vote counts
+      const updatedPollData = await getPoll(pollId)
+      
+      // Transform the updated data
+      const updatedPoll: Poll = {
+        id: updatedPollData.id,
+        title: updatedPollData.title,
+        description: updatedPollData.description || undefined,
+        options: updatedPollData.options.map(option => ({
+          id: option.id,
+          text: option.text,
+          votes: option.votes,
+          pollId: option.poll_id
+        })),
+        creatorId: updatedPollData.creator_id,
+        creator: updatedPollData.creator ? {
+          id: updatedPollData.creator.id,
+          email: updatedPollData.creator.email,
+          username: updatedPollData.creator.username,
+          firstName: updatedPollData.creator.first_name || undefined,
+          lastName: updatedPollData.creator.last_name || undefined,
+          avatar: updatedPollData.creator.avatar || undefined,
+          createdAt: new Date(updatedPollData.creator.created_at),
+          updatedAt: new Date(updatedPollData.creator.updated_at)
+        } : undefined,
+        isActive: updatedPollData.is_active,
+        allowMultipleVotes: updatedPollData.allow_multiple_votes,
+        requireAuth: updatedPollData.require_auth,
+        expiresAt: updatedPollData.expires_at ? new Date(updatedPollData.expires_at) : undefined,
+        createdAt: new Date(updatedPollData.created_at),
+        updatedAt: new Date(updatedPollData.updated_at),
+        totalVotes: updatedPollData.total_votes,
+        category: updatedPollData.category,
+        tags: updatedPollData.tags || undefined
       }
 
       setPoll(updatedPoll)
       setHasVoted(true)
       setShowResults(true)
 
-      // Store vote locally (in real app, this would be handled by the backend)
+      // Store vote locally for UI state
       localStorage.setItem(`voted_${pollId}`, 'true')
 
     } catch (error) {
       console.error("Voting error:", error)
+      // You might want to show an error toast here
     } finally {
       setIsVoting(false)
     }

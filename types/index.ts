@@ -1,4 +1,23 @@
-// User and Authentication Types
+// Re-export database types for convenience
+export type { 
+  Profile as User, 
+  Poll, 
+  PollOption, 
+  Vote, 
+  PollView,
+  ProfileInsert,
+  PollInsert,
+  PollOptionInsert,
+  VoteInsert,
+  PollViewInsert,
+  ProfileUpdate,
+  PollUpdate,
+  PollOptionUpdate,
+  VoteUpdate,
+  PollViewUpdate
+} from './database';
+
+// User and Authentication Types (keeping for backward compatibility)
 export interface User {
   id: string;
   email: string;
