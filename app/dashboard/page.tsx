@@ -22,91 +22,11 @@ import {
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
-import { getUserPolls, deletePoll } from "@/lib/actions/polls.actions"
-
-// Mock data for demonstration
-const mockUser: User = {
-  id: "user1",
-  email: "john.doe@example.com",
-  username: "johndoe",
-  firstName: "John",
-  lastName: "Doe",
-  avatar: "/avatars/john.jpg",
-  createdAt: new Date(Date.now() - 86400000 * 30), // 30 days ago
-  updatedAt: new Date()
-}
-
-const mockStats: DashboardStats = {
-  totalPolls: 12,
-  activePolls: 8,
-  totalVotes: 1247,
-  totalViews: 5432
-}
-
-const mockUserPolls: Poll[] = [
-  {
-    id: "1",
-    title: "What's your favorite programming language?",
-    description: "Help us understand developer preferences",
-    options: [
-      { id: "1a", text: "JavaScript", votes: 45, pollId: "1" },
-      { id: "1b", text: "Python", votes: 38, pollId: "1" },
-      { id: "1c", text: "TypeScript", votes: 32, pollId: "1" },
-    ],
-    creatorId: "user1",
-    creator: mockUser,
-    isActive: true,
-    allowMultipleVotes: false,
-    requireAuth: true,
-    createdAt: new Date(Date.now() - 86400000), // 1 day ago
-    updatedAt: new Date(Date.now() - 86400000),
-    totalVotes: 115,
-    category: "Technology",
-    tags: ["programming", "development"]
-  },
-  {
-    id: "2",
-    title: "Best meeting time for the team?",
-    description: "Let's coordinate our schedules",
-    options: [
-      { id: "2a", text: "9:00 AM", votes: 12, pollId: "2" },
-      { id: "2b", text: "11:00 AM", votes: 24, pollId: "2" },
-      { id: "2c", text: "2:00 PM", votes: 18, pollId: "2" },
-    ],
-    creatorId: "user1",
-    creator: mockUser,
-    isActive: true,
-    allowMultipleVotes: true,
-    requireAuth: false,
-    expiresAt: new Date(Date.now() + 604800000), // 7 days from now
-    createdAt: new Date(Date.now() - 172800000), // 2 days ago
-    updatedAt: new Date(Date.now() - 172800000),
-    totalVotes: 54,
-    category: "Business"
-  },
-  {
-    id: "3",
-    title: "Which UI framework should we use?",
-    description: "For our next project",
-    options: [
-      { id: "3a", text: "React", votes: 67, pollId: "3" },
-      { id: "3b", text: "Vue", votes: 43, pollId: "3" },
-      { id: "3c", text: "Angular", votes: 28, pollId: "3" },
-    ],
-    creatorId: "user1",
-    creator: mockUser,
-    isActive: false,
-    allowMultipleVotes: false,
-    requireAuth: true,
-    createdAt: new Date(Date.now() - 259200000), // 3 days ago
-    updatedAt: new Date(Date.now() - 86400000),
-    totalVotes: 138,
-    category: "Technology",
-    tags: ["ui", "framework", "frontend"]
-  }
-]
+import { getUserPolls, deletePoll, updatePoll } from "@/lib/actions/polls.actions"
+import { useToast } from "@/hooks/use-toast"
 
 export default function DashboardPage() {
+  const { toast } = useToast()
   const [user, setUser] = useState<User | null>(null)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [polls, setPolls] = useState<Poll[]>([])
@@ -259,6 +179,16 @@ export default function DashboardPage() {
       // Update local state
       setPolls(prev => prev.filter(poll => poll.id !== pollId))
       setFilteredPolls(prev => prev.filter(poll => poll.id !== pollId))
+      
+      // Recalculate stats
+      const updatedPolls = polls.filter(poll => poll.id !== pollId)
+      const updatedStats: DashboardStats = {
+        totalPolls: updatedPolls.length,
+        activePolls: updatedPolls.filter(poll => poll.isActive).length,
+        totalVotes: updatedPolls.reduce((sum, poll) => sum + poll.totalVotes, 0),
+        totalViews: updatedPolls.reduce((sum, poll) => sum + (poll.totalVotes * 3), 0)
+      }
+      setStats(updatedStats)
     } catch (error) {
       console.error("Error deleting poll:", error)
     }
@@ -266,11 +196,16 @@ export default function DashboardPage() {
 
   const handleTogglePollStatus = async (pollId: string) => {
     try {
-      // TODO: Replace with actual API call
-      console.log("Toggling poll status:", pollId)
+      const currentPoll = polls.find(poll => poll.id === pollId)
+      if (!currentPoll) return
+
+      await updatePoll(pollId, { is_active: !currentPoll.isActive })
 
       // Update local state
       setPolls(prev => prev.map(poll =>
+        poll.id === pollId ? { ...poll, isActive: !poll.isActive } : poll
+      ))
+      setFilteredPolls(prev => prev.map(poll =>
         poll.id === pollId ? { ...poll, isActive: !poll.isActive } : poll
       ))
     } catch (error) {
@@ -486,7 +421,18 @@ export default function DashboardPage() {
                           </Link>
                         </Button>
 
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            const pollUrl = `${window.location.origin}/polls/${poll.id}`
+                            navigator.clipboard.writeText(pollUrl)
+                            toast({
+                              title: "Link copied!",
+                              description: "Poll link has been copied to clipboard.",
+                            })
+                          }}
+                        >
                           <Share2 className="mr-2 h-4 w-4" />
                           Share
                         </Button>

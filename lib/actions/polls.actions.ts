@@ -188,6 +188,57 @@ export async function getActivePolls(limit = 20, offset = 0) {
   }
 }
 
+export async function updatePoll(pollId: string, updateData: Partial<PollUpdate>) {
+  const supabase = createClient()
+  
+  try {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      throw new Error("You must be logged in to update a poll")
+    }
+
+    // Check if user owns the poll
+    const { data: poll, error: pollError } = await supabase
+      .from("polls")
+      .select("creator_id")
+      .eq("id", pollId)
+      .single()
+
+    if (pollError || !poll) {
+      throw new Error("Poll not found")
+    }
+
+    if (poll.creator_id !== user.id) {
+      throw new Error("You can only update your own polls")
+    }
+
+    // Update the poll
+    const { error: updateError } = await supabase
+      .from("polls")
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", pollId)
+
+    if (updateError) {
+      throw new Error("Failed to update poll")
+    }
+
+    // Revalidate relevant paths
+    revalidatePath("/dashboard")
+    revalidatePath("/polls")
+    revalidatePath(`/polls/${pollId}`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error("Update poll error:", error)
+    throw error
+  }
+}
+
 export async function deletePoll(pollId: string) {
   const supabase = createClient()
   

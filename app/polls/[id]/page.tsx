@@ -39,6 +39,7 @@ export default function PollDetailPage() {
 
   const pollId = params.id as string
   const wasJustCreated = searchParams.get('created') === 'true'
+  const wasJustUpdated = searchParams.get('updated') === 'true'
 
   useEffect(() => {
     const fetchPoll = async () => {
@@ -269,6 +270,23 @@ export default function PollDetailPage() {
                 </p>
                 <p className="text-xs text-green-700">
                   Share the link to start collecting votes.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Success message for updated polls */}
+        {wasJustUpdated && (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardContent className="flex items-center gap-3 py-4">
+              <CheckCircle className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-blue-900">
+                  Poll updated successfully!
+                </p>
+                <p className="text-xs text-blue-700">
+                  Your changes have been saved.
                 </p>
               </div>
             </CardContent>
