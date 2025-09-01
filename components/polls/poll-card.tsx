@@ -1,58 +1,83 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Poll, PollCardProps } from "@/types"
-import { BarChart3, Calendar, Edit, Eye, MoreHorizontal, Share2, Trash2, Users, Vote } from "lucide-react"
-import Link from "next/link"
+import * as React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Poll, PollCardProps } from "@/types";
+import {
+  BarChart3,
+  Calendar,
+  Edit,
+  Eye,
+  MoreHorizontal,
+  Share2,
+  Trash2,
+  Users,
+  Vote,
+} from "lucide-react";
+import Link from "next/link";
+import { ShareModal } from "./modals/share-modal";
 
 export function PollCard({
   poll,
   showActions = false,
   onVote,
   onEdit,
-  onDelete
+  onDelete,
 }: PollCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(date))
-  }
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(date));
+  };
 
-  const isExpired = poll.expiresAt && new Date(poll.expiresAt) < new Date()
-  const canVote = poll.isActive && !isExpired
+  const isExpired = poll.expiresAt && new Date(poll.expiresAt) < new Date();
+  const canVote = poll.isActive && !isExpired;
 
   const handleOptionChange = (optionId: string) => {
     if (poll.allowMultipleVotes) {
-      setSelectedOptions(prev =>
+      setSelectedOptions((prev) =>
         prev.includes(optionId)
-          ? prev.filter(id => id !== optionId)
-          : [...prev, optionId]
-      )
+          ? prev.filter((id) => id !== optionId)
+          : [...prev, optionId],
+      );
     } else {
-      setSelectedOptions([optionId])
+      setSelectedOptions([optionId]);
     }
-  }
+  };
 
   const handleVote = () => {
     if (selectedOptions.length > 0 && onVote) {
-      onVote(poll.id, selectedOptions)
-      setSelectedOptions([])
+      onVote(poll.id, selectedOptions);
+      setSelectedOptions([]);
     }
-  }
+  };
 
   const getOptionPercentage = (votes: number) => {
-    return poll.totalVotes > 0 ? Math.round((votes / poll.totalVotes) * 100) : 0
-  }
+    return poll.totalVotes > 0
+      ? Math.round((votes / poll.totalVotes) * 100)
+      : 0;
+  };
+
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
 
   return (
     <Card className="w-full hover:shadow-md transition-shadow">
@@ -92,9 +117,7 @@ export function PollCard({
             <Calendar className="h-3 w-3" />
             <span>{formatDate(poll.createdAt)}</span>
           </div>
-          {poll.creator && (
-            <span>by {poll.creator.username}</span>
-          )}
+          {poll.creator && <span>by {poll.creator.username}</span>}
         </div>
 
         {poll.category && (
@@ -155,7 +178,7 @@ export function PollCard({
           <div className="mt-4">
             <Button onClick={handleVote} className="w-full">
               <Vote className="mr-2 h-4 w-4" />
-              Submit Vote{selectedOptions.length > 1 ? 's' : ''}
+              Submit Vote{selectedOptions.length > 1 ? "s" : ""}
             </Button>
           </div>
         )}
@@ -170,7 +193,7 @@ export function PollCard({
                 View Details
               </Link>
             </Button>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={handleShare}>
               <Share2 className="mr-2 h-4 w-4" />
               Share
             </Button>
@@ -183,11 +206,7 @@ export function PollCard({
                 Analytics
               </Button>
               {onEdit && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEdit(poll)}
-                >
+                <Button variant="ghost" size="sm" onClick={() => onEdit(poll)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </Button>
@@ -207,6 +226,17 @@ export function PollCard({
           )}
         </div>
       </CardFooter>
+
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        poll={{
+          id: poll.id,
+          title: poll.title,
+          description: poll.description,
+          slug: poll.id, // Using poll.id as slug since we don't have a separate slug field
+        }}
+      />
     </Card>
-  )
+  );
 }

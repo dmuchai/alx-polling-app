@@ -1,9 +1,16 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Poll, VoteData } from "@/types"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Poll, VoteData } from "@/types";
 import {
   BarChart3,
   Calendar,
@@ -18,223 +25,220 @@ import {
   Users,
   Vote,
   CheckCircle,
-  AlertCircle
-} from "lucide-react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
-import { getPoll } from "@/lib/actions/polls.actions"
-import { submitVote } from "@/lib/actions/voting.actions"
+  AlertCircle,
+} from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
+import { getPoll } from "@/lib/actions/polls.actions";
+import { submitVote } from "@/lib/actions/voting.actions";
+import { ShareModal } from "@/components/polls/modals/share-modal";
 
 export default function PollDetailPage() {
-  const params = useParams()
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const [poll, setPoll] = useState<Poll | null>(null)
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
-  const [hasVoted, setHasVoted] = useState(false)
-  const [isVoting, setIsVoting] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [showResults, setShowResults] = useState(false)
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [poll, setPoll] = useState<Poll | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [isVoting, setIsVoting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showResults, setShowResults] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
-  const pollId = params.id as string
-  const wasJustCreated = searchParams.get('created') === 'true'
-  const wasJustUpdated = searchParams.get('updated') === 'true'
+  const pollId = params.id as string;
+  const wasJustCreated = searchParams.get("created") === "true";
+  const wasJustUpdated = searchParams.get("updated") === "true";
 
   useEffect(() => {
     const fetchPoll = async () => {
       try {
-        const pollData = await getPoll(pollId)
-        
+        const pollData = await getPoll(pollId);
+
         // Transform the database data to match our Poll interface
         const transformedPoll: Poll = {
           id: pollData.id,
           title: pollData.title,
           description: pollData.description || undefined,
-          options: pollData.options.map(option => ({
+          options: pollData.options.map((option) => ({
             id: option.id,
             text: option.text,
             votes: option.votes,
-            pollId: option.poll_id
+            pollId: option.poll_id,
           })),
           creatorId: pollData.creator_id,
-          creator: pollData.creator ? {
-            id: pollData.creator.id,
-            email: pollData.creator.email,
-            username: pollData.creator.username,
-            firstName: pollData.creator.first_name || undefined,
-            lastName: pollData.creator.last_name || undefined,
-            avatar: pollData.creator.avatar || undefined,
-            createdAt: new Date(pollData.creator.created_at),
-            updatedAt: new Date(pollData.creator.updated_at)
-          } : undefined,
+          creator: pollData.creator
+            ? {
+                id: pollData.creator.id,
+                email: pollData.creator.email,
+                username: pollData.creator.username,
+                firstName: pollData.creator.first_name || undefined,
+                lastName: pollData.creator.last_name || undefined,
+                avatar: pollData.creator.avatar || undefined,
+                createdAt: new Date(pollData.creator.created_at),
+                updatedAt: new Date(pollData.creator.updated_at),
+              }
+            : undefined,
           isActive: pollData.is_active,
           allowMultipleVotes: pollData.allow_multiple_votes,
           requireAuth: pollData.require_auth,
-          expiresAt: pollData.expires_at ? new Date(pollData.expires_at) : undefined,
+          expiresAt: pollData.expires_at
+            ? new Date(pollData.expires_at)
+            : undefined,
           createdAt: new Date(pollData.created_at),
           updatedAt: new Date(pollData.updated_at),
           totalVotes: pollData.total_votes,
           category: pollData.category,
-          tags: pollData.tags || undefined
-        }
-        
-        setPoll(transformedPoll)
-        
+          tags: pollData.tags || undefined,
+        };
+
+        setPoll(transformedPoll);
+
         // Check if user has already voted
-        const userHasVoted = localStorage.getItem(`voted_${pollId}`)
-        setHasVoted(!!userHasVoted)
-        setShowResults(!!userHasVoted)
+        const userHasVoted = localStorage.getItem(`voted_${pollId}`);
+        setHasVoted(!!userHasVoted);
+        setShowResults(!!userHasVoted);
       } catch (error) {
-        console.error("Error fetching poll:", error)
+        console.error("Error fetching poll:", error);
         // Handle error appropriately
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchPoll()
-  }, [pollId])
+    fetchPoll();
+  }, [pollId]);
 
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(date))
-  }
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(date));
+  };
 
   const getTimeLeft = (expiresAt?: Date) => {
-    if (!expiresAt) return null
+    if (!expiresAt) return null;
 
-    const now = new Date().getTime()
-    const expiry = new Date(expiresAt).getTime()
-    const timeLeft = expiry - now
+    const now = new Date().getTime();
+    const expiry = new Date(expiresAt).getTime();
+    const timeLeft = expiry - now;
 
-    if (timeLeft <= 0) return "Expired"
+    if (timeLeft <= 0) return "Expired";
 
-    const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24))
-    const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+    const hours = Math.floor(
+      (timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+    );
 
-    if (days > 0) return `${days}d ${hours}h left`
-    if (hours > 0) return `${hours}h left`
+    if (days > 0) return `${days}d ${hours}h left`;
+    if (hours > 0) return `${hours}h left`;
 
-    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
-    return `${minutes}m left`
-  }
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    return `${minutes}m left`;
+  };
 
   const getOptionPercentage = (votes: number) => {
-    if (!poll || poll.totalVotes === 0) return 0
-    return Math.round((votes / poll.totalVotes) * 100)
-  }
+    if (!poll || poll.totalVotes === 0) return 0;
+    return Math.round((votes / poll.totalVotes) * 100);
+  };
 
   const handleOptionChange = (optionId: string) => {
-    if (hasVoted) return
+    if (hasVoted) return;
 
     if (poll?.allowMultipleVotes) {
-      setSelectedOptions(prev =>
+      setSelectedOptions((prev) =>
         prev.includes(optionId)
-          ? prev.filter(id => id !== optionId)
-          : [...prev, optionId]
-      )
+          ? prev.filter((id) => id !== optionId)
+          : [...prev, optionId],
+      );
     } else {
-      setSelectedOptions([optionId])
+      setSelectedOptions([optionId]);
     }
-  }
+  };
 
   const handleVote = async () => {
-    if (!poll || selectedOptions.length === 0 || hasVoted) return
+    if (!poll || selectedOptions.length === 0 || hasVoted) return;
 
-    setIsVoting(true)
+    setIsVoting(true);
 
     try {
       const voteData: VoteData = {
         pollId: poll.id,
-        optionIds: selectedOptions
-      }
+        optionIds: selectedOptions,
+      };
 
-      await submitVote(voteData)
+      await submitVote(voteData);
 
       // Refresh poll data to get updated vote counts
-      const updatedPollData = await getPoll(pollId)
-      
+      const updatedPollData = await getPoll(pollId);
+
       // Transform the updated data
       const updatedPoll: Poll = {
         id: updatedPollData.id,
         title: updatedPollData.title,
         description: updatedPollData.description || undefined,
-        options: updatedPollData.options.map(option => ({
+        options: updatedPollData.options.map((option) => ({
           id: option.id,
           text: option.text,
           votes: option.votes,
-          pollId: option.poll_id
+          pollId: option.poll_id,
         })),
         creatorId: updatedPollData.creator_id,
-        creator: updatedPollData.creator ? {
-          id: updatedPollData.creator.id,
-          email: updatedPollData.creator.email,
-          username: updatedPollData.creator.username,
-          firstName: updatedPollData.creator.first_name || undefined,
-          lastName: updatedPollData.creator.last_name || undefined,
-          avatar: updatedPollData.creator.avatar || undefined,
-          createdAt: new Date(updatedPollData.creator.created_at),
-          updatedAt: new Date(updatedPollData.creator.updated_at)
-        } : undefined,
+        creator: updatedPollData.creator
+          ? {
+              id: updatedPollData.creator.id,
+              email: updatedPollData.creator.email,
+              username: updatedPollData.creator.username,
+              firstName: updatedPollData.creator.first_name || undefined,
+              lastName: updatedPollData.creator.last_name || undefined,
+              avatar: updatedPollData.creator.avatar || undefined,
+              createdAt: new Date(updatedPollData.creator.created_at),
+              updatedAt: new Date(updatedPollData.creator.updated_at),
+            }
+          : undefined,
         isActive: updatedPollData.is_active,
         allowMultipleVotes: updatedPollData.allow_multiple_votes,
         requireAuth: updatedPollData.require_auth,
-        expiresAt: updatedPollData.expires_at ? new Date(updatedPollData.expires_at) : undefined,
+        expiresAt: updatedPollData.expires_at
+          ? new Date(updatedPollData.expires_at)
+          : undefined,
         createdAt: new Date(updatedPollData.created_at),
         updatedAt: new Date(updatedPollData.updated_at),
         totalVotes: updatedPollData.total_votes,
         category: updatedPollData.category,
-        tags: updatedPollData.tags || undefined
-      }
+        tags: updatedPollData.tags || undefined,
+      };
 
-      setPoll(updatedPoll)
-      setHasVoted(true)
-      setShowResults(true)
+      setPoll(updatedPoll);
+      setHasVoted(true);
+      setShowResults(true);
 
       // Store vote locally for UI state
-      localStorage.setItem(`voted_${pollId}`, 'true')
-
+      localStorage.setItem(`voted_${pollId}`, "true");
     } catch (error) {
-      console.error("Voting error:", error)
+      console.error("Voting error:", error);
       // You might want to show an error toast here
     } finally {
-      setIsVoting(false)
+      setIsVoting(false);
     }
-  }
+  };
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: poll?.title,
-          text: poll?.description,
-          url: window.location.href,
-        })
-      } catch (err) {
-        // Fallback to clipboard
-        navigator.clipboard.writeText(window.location.href)
-      }
-    } else {
-      // Fallback to clipboard
-      navigator.clipboard.writeText(window.location.href)
-    }
-  }
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
 
-  const isExpired = poll?.expiresAt && new Date(poll.expiresAt) < new Date()
-  const canVote = poll?.isActive && !isExpired && !hasVoted
+  const isExpired = poll?.expiresAt && new Date(poll.expiresAt) < new Date();
+  const canVote = poll?.isActive && !isExpired && !hasVoted;
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
-    )
+    );
   }
 
   if (!poll) {
@@ -243,7 +247,9 @@ export default function PollDetailPage() {
         <Card className="max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Poll not found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Poll not found
+            </h3>
             <p className="text-gray-600 mb-4 text-center">
               This poll may have been deleted or the link is incorrect.
             </p>
@@ -253,7 +259,7 @@ export default function PollDetailPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -413,9 +419,7 @@ export default function PollDetailPage() {
 
                     {showResults && (
                       <div className="text-sm text-muted-foreground text-right">
-                        <div className="font-medium">
-                          {option.votes} votes
-                        </div>
+                        <div className="font-medium">{option.votes} votes</div>
                         <div className="text-xs">
                           {getOptionPercentage(option.votes)}%
                         </div>
@@ -428,7 +432,9 @@ export default function PollDetailPage() {
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
                         className="bg-primary h-3 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${getOptionPercentage(option.votes)}%` }}
+                        style={{
+                          width: `${getOptionPercentage(option.votes)}%`,
+                        }}
                       />
                     </div>
                   )}
@@ -449,7 +455,7 @@ export default function PollDetailPage() {
                   ) : (
                     <>
                       <Vote className="mr-2 h-4 w-4" />
-                      Submit Vote{selectedOptions.length > 1 ? 's' : ''}
+                      Submit Vote{selectedOptions.length > 1 ? "s" : ""}
                     </>
                   )}
                 </Button>
@@ -464,7 +470,7 @@ export default function PollDetailPage() {
                   size="sm"
                   onClick={() => setShowResults(!showResults)}
                 >
-                  {showResults ? 'Hide Results' : 'Show Results'}
+                  {showResults ? "Hide Results" : "Show Results"}
                 </Button>
               </div>
             )}
@@ -525,23 +531,40 @@ export default function PollDetailPage() {
         {/* Related Polls */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">More from {poll.creator?.username}</CardTitle>
+            <CardTitle className="text-lg">
+              More from {poll.creator?.username}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Placeholder for related polls */}
               <div className="p-4 border rounded-lg">
                 <h4 className="font-medium mb-2">Best JavaScript Framework?</h4>
-                <p className="text-sm text-muted-foreground">234 votes • 2 days ago</p>
+                <p className="text-sm text-muted-foreground">
+                  234 votes • 2 days ago
+                </p>
               </div>
               <div className="p-4 border rounded-lg">
                 <h4 className="font-medium mb-2">Preferred Code Editor?</h4>
-                <p className="text-sm text-muted-foreground">567 votes • 5 days ago</p>
+                <p className="text-sm text-muted-foreground">
+                  567 votes • 5 days ago
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          poll={{
+            id: poll.id,
+            title: poll.title,
+            description: poll.description,
+            slug: poll.id, // Using poll.id as slug since we don't have a separate slug field
+          }}
+        />
       </div>
     </div>
-  )
+  );
 }
