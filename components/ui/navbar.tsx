@@ -1,7 +1,8 @@
-import Link from 'next/link';
-import { useSupabase } from '@/components/auth/session-provider';
-import { useRouter } from 'next/navigation';
+"use client";
 
+import Link from "next/link";
+import { useSupabase } from "@/components/auth/session-provider";
+import { useRouter } from "next/navigation";
 
 export default function Navbar() {
   const { session, supabase } = useSupabase();
@@ -19,15 +20,27 @@ export default function Navbar() {
           <Link href="/dashboard">Polling App</Link>
         </div>
         <div className="flex gap-4">
-          <Link href="/dashboard" className="hover:underline">Dashboard</Link>
-          <Link href="/polls" className="hover:underline">Polls</Link>
-          <Link href="/polls/create" className="hover:underline">Create Poll</Link>
+          <Link href="/dashboard" className="hover:underline">
+            Dashboard
+          </Link>
+          <Link href="/polls" className="hover:underline">
+            Polls
+          </Link>
+          <Link href="/polls/create" className="hover:underline">
+            Create Poll
+          </Link>
           {session ? (
-            <button onClick={handleLogout} className="hover:underline">Logout</button>
+            <button onClick={handleLogout} className="hover:underline">
+              Logout
+            </button>
           ) : (
             <>
-              <Link href="/(auth)/login" className="hover:underline">Login</Link>
-              <Link href="/(auth)/register" className="hover:underline">Register</Link>
+              <Link href="/(auth)/login" className="hover:underline">
+                Login
+              </Link>
+              <Link href="/(auth)/register" className="hover:underline">
+                Register
+              </Link>
             </>
           )}
         </div>
