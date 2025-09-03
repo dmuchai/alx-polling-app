@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Navbar from "@/components/ui/navbar";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/auth/session-provider";
@@ -34,7 +35,13 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SessionProvider session={session}>{children}</SessionProvider>
+          <SessionProvider session={session}>
+            {/* Navbar for navigation */}
+            <div className="min-h-screen flex flex-col">
+              <Navbar />
+              <main className="flex-1">{children}</main>
+            </div>
+          </SessionProvider>
       </body>
     </html>
   );
